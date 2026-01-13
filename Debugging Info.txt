@@ -1,0 +1,401 @@
+Below are **hand-written–style study notes**, written **like a textbook**, exactly for a **beginner in x86 32-bit Assembly (AT&T syntax)** who already knows **C/C++**.
+I will **not skip steps** and will explain **WHY** each thing is done.
+
+---
+
+# 📘 x86 (32-bit) Assembly Debugging on Ubuntu
+
+### (AT&T Syntax – Beginner to Strong Foundation)
+
+---
+
+## 1️⃣ Required Tools for Assembly Debugging
+
+When working with assembly on Linux, **three tools are essential**:
+
+### 🔹 1. `as` (GNU Assembler)
+
+* Converts **assembly (.s)** into **machine code (.o)**
+* Similar to how `gcc -c` compiles C code
+* Output is an **object file**, not executable
+
+### 🔹 2. `ld` (GNU Linker)
+
+* Links one or more object files
+* Produces the **final executable**
+* Resolves symbols like `_start`, `printf`, `exit`
+
+### 🔹 3. `gdb` (GNU Debugger)
+
+* Allows step-by-step execution
+* View registers, memory, stack
+* Essential for understanding **what CPU is doing**
+
+📌 **Why debugging is critical in assembly**
+
+* No high-level safety
+* One wrong instruction = crash
+* Debugger is your microscope
+
+---
+
+## 2️⃣ Installing Required Tools on Ubuntu (32-bit Support)
+
+### 🔹 Step 1: Update package list
+
+```
+sudo apt update
+```
+
+👉 Ensures latest package versions
+
+---
+
+### 🔹 Step 2: Install core development tools
+
+```
+sudo apt install build-essential
+```
+
+**What this installs:**
+
+* `gcc` → compiler
+* `as` → assembler
+* `ld` → linker
+* Standard headers & libraries
+
+---
+
+### 🔹 Step 3: Install GDB
+
+```
+sudo apt install gdb
+```
+
+👉 Required for debugging
+
+---
+
+### 🔹 Step 4: Enable 32-bit compilation
+
+```
+sudo apt install gcc-multilib libc6-dev-i386
+```
+
+**Why needed:**
+
+* Ubuntu is 64-bit by default
+* 32-bit assembly needs 32-bit libraries
+
+---
+
+## 3️⃣ Writing and Saving a `.s` Assembly File
+
+### 🔹 Step 1: Create a file
+
+```
+nano hello.s
+```
+
+### 🔹 Step 2: Minimal 32-bit assembly program
+
+```asm
+.section .text
+.globl _start
+
+_start:
+    movl $1, %eax     # sys_exit
+    movl $0, %ebx     # status
+    int $0x80
+```
+
+### 🔹 Step 3: Save the file
+
+* `CTRL + O` → save
+* `CTRL + X` → exit
+
+📌 `.s` = assembly source file
+
+---
+
+## 4️⃣ Assemble with Debug Symbols (32-bit)
+
+### 🔹 Command:
+
+```
+as --32 -g hello.s -o hello.o
+```
+
+### 🔹 Explanation:
+
+| Option | Meaning               |
+| ------ | --------------------- |
+| `--32` | Force 32-bit assembly |
+| `-g`   | Include debug symbols |
+| `-o`   | Output object file    |
+
+📌 Debug symbols are **mandatory for GDB**
+
+---
+
+## 5️⃣ Linking the Object File Correctly
+
+### 🔹 Command:
+
+```
+ld -m elf_i386 -o hello hello.o
+```
+
+### 🔹 Explanation:
+
+| Part          | Meaning           |
+| ------------- | ----------------- |
+| `-m elf_i386` | 32-bit ELF format |
+| `hello.o`     | Input object file |
+| `hello`       | Final executable  |
+
+📌 Without this → linker errors
+
+---
+
+## 6️⃣ Verifying the Executable Type
+
+### 🔹 Command:
+
+```
+file hello
+```
+
+### 🔹 Output should show:
+
+```
+ELF 32-bit LSB executable
+```
+
+📌 This confirms:
+
+* Correct architecture
+* Correct format
+
+---
+
+## 7️⃣ Starting GDB for an Assembly Program
+
+### 🔹 Command:
+
+```
+gdb hello
+```
+
+You will see:
+
+```
+(gdb)
+```
+
+This means GDB is ready.
+
+---
+
+## 8️⃣ Why Breakpoints Are REQUIRED in Assembly
+
+### 🔹 Important concept:
+
+Assembly programs execute **very fast**.
+
+If you type:
+
+```
+run
+```
+
+The program:
+
+* Starts
+* Ends
+* Registers are gone
+
+📌 **Solution:** Use breakpoints
+
+---
+
+## 9️⃣ Step-by-Step GDB Debugging Flow
+
+---
+
+### 🔹 Step 1: Set breakpoint at entry
+
+```
+break _start
+```
+
+📌 Stops program **before first instruction**
+
+---
+
+### 🔹 Step 2: Run the program
+
+```
+run
+```
+
+Execution stops at `_start`
+
+---
+
+### 🔹 Step 3: Single instruction step
+
+```
+si
+```
+
+👉 Executes **one CPU instruction**
+
+---
+
+### 🔹 Step 4: View registers
+
+```
+info registers
+```
+
+Shows:
+
+* `%eax`
+* `%ebx`
+* `%ecx`
+* `%esp`, `%eip`, etc.
+
+---
+
+### 🔹 Step 5: Print a single register
+
+```
+print $eax
+```
+
+📌 `$eax` is GDB syntax
+
+---
+
+### 🔹 Step 6: View instructions
+
+```
+disassemble
+```
+
+Or:
+
+```
+x/5i $eip
+```
+
+---
+
+### 🔹 Step 7: View stack memory
+
+```
+x/8x $esp
+```
+
+Shows top 8 stack values
+
+---
+
+### 🔹 Step 8: View memory
+
+```
+x/4x 0x8048000
+```
+
+---
+
+## 🔟 Why Registers Disappear After Program Exit
+
+Once program ends:
+
+* Kernel **destroys process**
+* Registers are freed
+* Memory is reclaimed
+
+📌 **Registers exist only while process is alive**
+
+---
+
+## 1️⃣1️⃣ Common Beginner Errors
+
+### ❌ Error: “No such file or directory”
+
+✔ Fix: Wrong executable name
+
+---
+
+### ❌ Error: “Cannot access memory”
+
+✔ Fix: Program already exited
+
+---
+
+### ❌ Error: “Undefined reference to _start”
+
+✔ Fix: Forgot `.globl _start`
+
+---
+
+### ❌ Error: GDB shows 64-bit registers
+
+✔ Fix: Forgot `--32` or `-m elf_i386`
+
+---
+
+## 1️⃣2️⃣ Assembly vs GDB Register Syntax
+
+| Context  | Syntax |
+| -------- | ------ |
+| Assembly | `%eax` |
+| GDB      | `$eax` |
+
+📌 `%` → assembler
+📌 `$` → debugger
+
+---
+
+## 1️⃣3️⃣ Clean Command Summary
+
+```
+sudo apt install build-essential gdb gcc-multilib libc6-dev-i386
+
+as --32 -g file.s -o file.o
+ld -m elf_i386 file.o -o file
+file file
+gdb file
+break _start
+run
+si
+info registers
+print $eax
+x/8x $esp
+```
+
+---
+
+## 1️⃣4️⃣ Final Notes (Textbook Style)
+
+* Assembly = **full control**
+* Debugging = **mandatory**
+* Registers = **temporary**
+* Stack = **critical**
+* Breakpoints = **lifesaver**
+
+---
+
+If you want next handwritten notes on:
+
+* Stack frames
+* Calling `printf`
+* Syscalls
+* Memory layout
+* Function calls in assembly
+
+Just tell me which topic 📘
+
